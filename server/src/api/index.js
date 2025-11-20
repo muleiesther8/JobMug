@@ -1,15 +1,14 @@
-// Vercel serverless wrapper for your Express app (CommonJS).
-// Ensures DB is connected before forwarding requests to the Express app using serverless-http.
-
+// api/index.js
+// Vercel serverless wrapper for your Express app. Do NOT call app.listen() anywhere in app.js.
 const serverless = require('serverless-http');
-const app = require('../app'); // adjust path if your app.js is elsewhere
-const { connectToDatabase } = require('../lib/mongoose');
+const app = require('../app'); // adjust path if your express app is in a different location
+const { connectToDatabase } = require('./lib/mongoose');
 
 let isConnected = false;
 let handler = null;
 
 module.exports = async (req, res) => {
-  // Quickly handle CORS preflight
+  // Quick preflight handling
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');

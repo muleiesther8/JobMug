@@ -1,4 +1,4 @@
-// Minimal DB health endpoint for Vercel
+// api/health.js
 const { connectToDatabase } = require('../lib/mongoose');
 
 module.exports = async (req, res) => {
@@ -13,17 +13,11 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const mongoose = await connectToDatabase(MONGODB_URI, {
-      serverSelectionTimeoutMS: 8000,
-      maxAttempts: 3,
-      baseDelay: 500
-    });
-
+    const mongoose = await connectToDatabase(MONGODB_URI, { serverSelectionTimeoutMS: 8000, maxAttempts: 3, baseDelay: 500 });
     const readyState = mongoose.connection.readyState; // 1 = connected
-    const ok = readyState === 1;
-    return res.status(ok ? 200 : 503).json({ status: ok ? 'ok' : 'degraded', readyState });
+    return res.status(readyState === 1 ? 200 : 503).json({ status: readyState === 1 ? 'ok' : 'degraded', readyState });
   } catch (err) {
-    console.error('Health DB connect error:', err && (err.message || err));
+    console.error('Health DB connect error:', err && err.message ? err.message : err);
     return res.status(503).json({ status: 'error', message: 'DB connection failed', detail: err?.message });
   }
 };

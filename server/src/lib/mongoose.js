@@ -1,31 +1,23 @@
-// Serverless-friendly mongoose connection helper for Vercel (CommonJS).
-// Caches the connection on the global object to reuse warm containers and prevents
-// creating a new connection on every invocation. Retries with exponential backoff.
-
+// lib/mongoose.js
+// Serverless-friendly mongoose connection helper (CommonJS).
 const mongoose = require('mongoose');
 
 const DEFAULT_SERVER_SELECTION_TIMEOUT = 10000;
-const DEFAULT_SOCKET_TIMEOUT = 45000;
 const CACHE_KEY = '__mongoose_cache_v1__';
 
 const defaults = {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  serverSelectionTimeoutMS: DEFAULT_SERVER_SELECTION_TIMEOUT,
-  socketTimeoutMS: DEFAULT_SOCKET_TIMEOUT
+  serverSelectionTimeoutMS: DEFAULT_SERVER_SELECTION_TIMEOUT
 };
 
 async function connectToDatabase(mongoUri, opts = {}) {
-  if (!mongoUri) {
-    throw new Error('MONGODB_URI must be provided');
-  }
+  if (!mongoUri) throw new Error('MONGODB_URI must be provided');
 
   const globalRef = global;
-  if (!globalRef[CACHE_KEY]) {
-    globalRef[CACHE_KEY] = { conn: null, promise: null };
-  }
+  if (!globalRef[CACHE_KEY]) globalRef[CACHE_KEY] = { conn: null, promise: null };
 
-  // If an active connected instance exists, return it
+  // Return if already connected
   if (globalRef[CACHE_KEY].conn && globalRef[CACHE_KEY].conn.connection && globalRef[CACHE_KEY].conn.connection.readyState === 1) {
     return globalRef[CACHE_KEY].conn;
   }
@@ -34,14 +26,10 @@ async function connectToDatabase(mongoUri, opts = {}) {
     const connectOpts = Object.assign({}, defaults, opts);
 
     globalRef[CACHE_KEY].promise = (async () => {
-      // Optional: set mongoose to fail fast instead of buffering:
-      // mongoose.set('bufferCommands', false);
-
       const maxAttempts = opts.maxAttempts || 4;
       const baseDelay = opts.baseDelay || 500;
       let attempt = 0;
       let lastErr = null;
-
       while (attempt < maxAttempts) {
         attempt += 1;
         try {
