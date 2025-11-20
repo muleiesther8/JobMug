@@ -1,5 +1,5 @@
 // api/health.js
-// GET /api/health -> quickly check DB availability.
+// Simple health endpoint that attempts a DB connection and reports status.
 
 const { connectToDatabase } = require('../lib/mongoose');
 
@@ -9,7 +9,7 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const MONGODB_URI = process.env.MONGODB_URI;
+  const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
   if (!MONGODB_URI) {
     return res.status(500).json({ status: 'error', message: 'MONGODB_URI not set' });
   }
@@ -20,7 +20,8 @@ module.exports = async (req, res) => {
       maxAttempts: 3,
       baseDelay: 500
     });
-    const readyState = mongoose.connection.readyState; // 1 === connected
+
+    const readyState = mongoose.connection.readyState; // 1 = connected
     const ok = readyState === 1;
     return res.status(ok ? 200 : 503).json({ status: ok ? 'ok' : 'degraded', readyState });
   } catch (err) {

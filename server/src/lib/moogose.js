@@ -1,6 +1,7 @@
 // lib/mongoose.js
-// Serverless-friendly mongoose connection helper for Vercel.
-// Caches the connection on global to reuse warm containers and prevents multiple concurrent connects.
+// Serverless-friendly mongoose connection helper for Vercel (CommonJS).
+// Caches the connection on the global object to reuse warm containers and prevents
+// creating a new connection on every invocation.
 
 const mongoose = require('mongoose');
 
@@ -25,7 +26,7 @@ async function connectToDatabase(mongoUri, opts = {}) {
     globalRef[CACHE_KEY] = { conn: null, promise: null };
   }
 
-  // Return existing connection if ready
+  // If there's an active connected mongoose instance, return it
   if (globalRef[CACHE_KEY].conn && globalRef[CACHE_KEY].conn.connection && globalRef[CACHE_KEY].conn.connection.readyState === 1) {
     return globalRef[CACHE_KEY].conn;
   }
@@ -34,10 +35,9 @@ async function connectToDatabase(mongoUri, opts = {}) {
     const connectOpts = Object.assign({}, defaults, opts);
 
     globalRef[CACHE_KEY].promise = (async () => {
-      // Optional: make queries fail fast instead of buffering:
+      // Optional: disable buffering if you want queries to fail fast
       // mongoose.set('bufferCommands', false);
 
-      // retry loop
       const maxAttempts = opts.maxAttempts || 4;
       const baseDelay = opts.baseDelay || 500;
       let attempt = 0;
@@ -46,15 +46,15 @@ async function connectToDatabase(mongoUri, opts = {}) {
       while (attempt < maxAttempts) {
         attempt += 1;
         try {
-          // Avoid multiple mongoose.connect() calls if promise exists
           await mongoose.connect(mongoUri, connectOpts);
           globalRef[CACHE_KEY].conn = mongoose;
           return mongoose;
         } catch (err) {
           lastErr = err;
-          // last attempt -> throw
+          // If final attempt, break and throw
           if (attempt >= maxAttempts) break;
           const wait = baseDelay * Math.pow(2, attempt - 1);
+          // exponential backoff
           await new Promise((r) => setTimeout(r, wait));
         }
       }
