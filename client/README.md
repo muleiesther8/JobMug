@@ -6,6 +6,7 @@ Quick start:
 1. From repository root:
    cd client
    npm install
+   npm run dev
 
 2. Start dev server:
    npm run dev
